@@ -3,7 +3,6 @@ import logging
 import json
 from typing import Optional, Dict, Any
 
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -11,7 +10,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class RabbitMQClient:
-    """client to manage RabbitMQ connections and message publishing."""
+    """Client to manage RabbitMQ connections and message publishing."""
     
     def __init__(self, host: str = 'localhost', port: int = 5672):
         self.host = host
@@ -22,7 +21,6 @@ class RabbitMQClient:
     def connect(self) -> None:
         """Establishes a connection to the RabbitMQ broker."""
         try:
-            # Set up default guest credentials
             credentials = pika.PlainCredentials('admin', 'historian')
             parameters = pika.ConnectionParameters(
                 host=self.host, 
@@ -30,7 +28,6 @@ class RabbitMQClient:
                 credentials=credentials
             )
             
-            # to Establish the connection and open a communication channel
             self.connection = pika.BlockingConnection(parameters)
             self.channel = self.connection.channel()
             
@@ -47,10 +44,9 @@ class RabbitMQClient:
             return False
             
         try:
-            # to ensure the queue exists before sending a message (durable=True means that it survives server restarts)
+            # Ensures the queue exists before sending a message
             self.channel.queue_declare(queue=queue_name, durable=True)
             
-            # to Convert the Python dictionary to a standard JSON string
             message = json.dumps(payload)
             
             self.channel.basic_publish(
@@ -58,7 +54,7 @@ class RabbitMQClient:
                 routing_key=queue_name,
                 body=message,
                 properties=pika.BasicProperties(
-                    delivery_mode=2,  # 2 makes the message persistent on the disk
+                    delivery_mode=2,  # Persistent
                 )
             )
             logger.info(f"Message successfully published to '{queue_name}'")
@@ -76,19 +72,33 @@ class RabbitMQClient:
 
 # --- Test Block ---
 if __name__ == "__main__":
-    # This block only runs if you execute this file directly in the terminal
     broker = RabbitMQClient()
     try:
         broker.connect()
         
-        # Simulating sending a piece of sensor telemetry data
+        # Simulating the exact SCADA payload specification
         test_data = {
-            "sensor_id": "freezer_temp_01",
-            "status": "warning",
-            "reading": -78.5
+            "recordId": "SCADA-EVT-2026-09-01-000001",
+            "sourceEventId": "SCADA-EVT-2026-09-01-000001",
+            "sourceSystem": "SCADA",
+            "organizationId": "ORG-001",
+            "instrumentId": "INS-001",
+            "tagId": "TAG-001",
+            "parameter": "Temperature",
+            "value": 37.2,
+            "unit": "C",
+            "sourceTimestamp": "2026-09-01T09:30:00Z",
+            "receivedTimestamp": "2026-09-01T09:30:02Z",
+            "quality": "Good",
+            "batchId": "BATCH-2026-001",
+            "sampleId": None,
+            "runId": "RUN-001",
+            "metadata": {
+                "dataType": "Numeric",
+                "sourceQuality": "Good"
+            }
         }
         broker.publish(queue_name="telemetry_queue", payload=test_data)
         
     finally:
-        # The 'finally' block ensures the connection closes even if an error crashes the script
         broker.close()

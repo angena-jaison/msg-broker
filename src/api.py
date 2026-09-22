@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional, Dict
 import json
 
 from src.main import RabbitMQClient
@@ -8,7 +9,7 @@ from src.main import RabbitMQClient
 app = FastAPI(
     title="Admin Dashboard API",
     description="Backend API for the RabbitMQ telemetry broker.",
-    version="1.1.0"
+    version="1.2.0"
 )
 
 app.add_middleware(
@@ -19,40 +20,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class TelemetryData(BaseModel):
-    sensor_id: str
-    status: str
-    reading: float
+# Nested model for the metadata block
+class ScadaMetadata(BaseModel):
+    dataType: str
+    sourceQuality: str
 
-# --- Dependency Injection part ---
-# FastAPI's Dependency Injection 
-# (Depends) to manage the RabbitMQ connection lifecycle.
-# hence This opens a 
-# dedicated broker connection for each incoming HTTP request
+# Main schema for the new SCADA payload
+class ScadaTelemetryEvent(BaseModel):
+    recordId: str
+    sourceEventId: str
+    sourceSystem: str
+    organizationId: str
+    instrumentId: str
+    tagId: str
+    parameter: str
+    value: float
+    unit: str
+    sourceTimestamp: str
+    receivedTimestamp: str
+    quality: str
+    batchId: str
+    sampleId: Optional[str] = None  # Optional allows this to accept null values
+    runId: str
+    metadata: ScadaMetadata
+
 def get_broker():
     """This creates a fresh, temporary connection for EVERY single web request."""
     temp_broker = RabbitMQClient()
     temp_broker.connect()
     try:
-        # Hand the temporary broker to the endpoint
         yield temp_broker
     finally:
-        # Always safely close it when the request is finished!
         temp_broker.close()
-
-# -------------------------------------
 
 @app.get("/health")
 def health_check():
     return {"status": "online", "system": "Telemetry API"}
 
-# Notice we added `broker: RabbitMQClient = Depends(get_broker)` to the arguments
 @app.post("/api/publish/{queue_name}")
-def publish_to_queue(queue_name: str, payload: TelemetryData, broker: RabbitMQClient = Depends(get_broker)):
+def publish_to_queue(queue_name: str, payload: ScadaTelemetryEvent, broker: RabbitMQClient = Depends(get_broker)):
+    # Convert the validated Pydantic object back into a dictionary for RabbitMQ
     data_dict = payload.model_dump()
     success = broker.publish(queue_name=queue_name, payload=data_dict)
-    #if a sensor sends data to /api/publish/freezer_alerts, 
-    # the queue_name variable becomes "freezer_alerts"
     
     if not success:
         raise HTTPException(status_code=500, detail="Failed to publish message to broker.")
