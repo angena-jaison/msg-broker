@@ -82,7 +82,7 @@ if __name__ == "__main__":
             "sourceEventId": "SCADA-EVT-2026-09-01-000001",
             "sourceSystem": "SCADA",
             "tenantId": "TNT-001",       
-            "locationId": "LOC-001"
+            "locationId": "LOC-001",
             "organizationId": "ORG-001",
             "instrumentId": "INS-001",
             "tagId": "TAG-001",
