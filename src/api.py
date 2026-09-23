@@ -31,6 +31,8 @@ class ScadaTelemetryEvent(BaseModel):
     recordId: str
     sourceEventId: str
     sourceSystem: str
+    tenantId: str      
+    locationId: str
     organizationId: str
     instrumentId: str
     tagId: str
