@@ -47,7 +47,7 @@ class RabbitMQClient:
             # Ensures the queue exists before sending a message
             self.channel.queue_declare(queue=queue_name, durable=True)
             
-            message = json.dumps(payload)
+            message = json.dumps(payload,default=str)
             
             self.channel.basic_publish(
                 exchange='',

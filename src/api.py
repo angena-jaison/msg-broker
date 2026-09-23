@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict
 import json
+from datetime import datetime
 
 from src.main import RabbitMQClient
 
@@ -36,8 +37,8 @@ class ScadaTelemetryEvent(BaseModel):
     parameter: str
     value: float
     unit: str
-    sourceTimestamp: str
-    receivedTimestamp: str
+    sourceTimestamp: datetime
+    receivedTimestamp: datetime
     quality: str
     batchId: str
     sampleId: Optional[str] = None  # Optional allows this to accept null values
@@ -60,7 +61,7 @@ def health_check():
 @app.post("/api/publish/{queue_name}")
 def publish_to_queue(queue_name: str, payload: ScadaTelemetryEvent, broker: RabbitMQClient = Depends(get_broker)):
     # Convert the validated Pydantic object back into a dictionary for RabbitMQ
-    data_dict = payload.model_dump()
+    data_dict = payload.model_dump(mode='json')
     success = broker.publish(queue_name=queue_name, payload=data_dict)
     
     if not success:
